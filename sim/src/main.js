@@ -12,11 +12,15 @@ camera.position.set(10, 10, 10);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;          // <-- enable shadows
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // optional: softer shadows
 document.body.appendChild(renderer.domElement);
+
+const planeSize = 100;
 
 // Plane
 const plane = new THREE.Mesh(
-  new THREE.PlaneGeometry(50,50),
+  new THREE.PlaneGeometry(planeSize,planeSize),
   new THREE.MeshStandardMaterial({ color: 0x888888 })
 );
 plane.rotation.x = -Math.PI/2;
@@ -31,6 +35,17 @@ scene.add(hemi);
 const dir = new THREE.DirectionalLight(0xffffff, 0.8);
 dir.position.set(10,20,10);
 dir.castShadow = true;
+
+// Optional: increase shadow resolution for clarity
+dir.shadow.mapSize.width = 2048;
+dir.shadow.mapSize.height = 2048;
+dir.shadow.camera.near = 1;
+dir.shadow.camera.far = 100;
+dir.shadow.camera.left = -50;
+dir.shadow.camera.right = 50;
+dir.shadow.camera.top = 50;
+dir.shadow.camera.bottom = -50;
+
 scene.add(dir);
 
 // Drone (cube)
@@ -175,13 +190,50 @@ function physics(){
   drone.position.copy(droneState.pos);
 }
 
+// --- Add 100 random boxes on plane ---
+const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+const boxMaterial = new THREE.MeshStandardMaterial({ color: 0x999999 });
+
+for (let i = 0; i < 2000; i++) {
+  const box = new THREE.Mesh(boxGeometry, boxMaterial);
+  
+  // Random position within plane bounds (-25 to +25 for 50x50 plane)
+  box.position.x = Math.random() * planeSize - planeSize / 2;
+  box.position.y = Math.random() * planeSize; // half-height to sit on plane
+  box.position.z = Math.random() * planeSize - planeSize / 2;
+  
+  box.castShadow = true;
+  box.receiveShadow = true;
+  
+  scene.add(box);
+}
+
+drone.traverse(obj => {
+  if (obj.isMesh) {
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+  }
+});
+
+
+
+
 // Add grid helper on the plane
-const grid = new THREE.GridHelper(50, 50, 0x000000, 0x888888); // size 50, divisions 50
+const grid = new THREE.GridHelper(planeSize, planeSize, 0x000000, 0x888888); // size 50, divisions 50
 grid.position.y = 0.01;
 scene.add(grid);
 
 function animate(){
   // --- Read gamepad axes ---
+
+
+  // --- Update drone physics using Drone's method ---
+  const rollInput = axes[0] || 0;    // right stick X
+  const pitchInput = axes[1] || 0;   // right stick Y
+  const throttleInput = axes[3] || 0; // left stick Y
+  const yawInput = axes[4] || 0;     // left stick X
+
+  drone.updatePhysics(throttleInput, rollInput, pitchInput, yawInput, dt);
   
 
   // --- Update physics ---

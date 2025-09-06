@@ -1,4 +1,5 @@
-import * as THREE from 'three';
+import * as THREE from "three";
+import { Rotor } from "./Rotor.js";
 
 export class Drone extends THREE.Group {
   constructor() {
@@ -9,7 +10,7 @@ export class Drone extends THREE.Group {
       pos: new THREE.Vector3(0, 2, 0),
       vel: new THREE.Vector3(0, 0, 0),
       rot: new THREE.Euler(0, 0, 0),
-      angVel: new THREE.Vector3(0, 0, 0)
+      angVel: new THREE.Vector3(0, 0, 0),
     };
 
     this.mass = 1;
@@ -21,11 +22,10 @@ export class Drone extends THREE.Group {
 
   createDroneMesh() {
     // Central body
-    const bodyGeometry = new THREE.BoxGeometry(0.5, 0.3, 1);
+    const bodyGeometry = new THREE.BoxGeometry(0.3, 0.3, 1);
     const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x666666 });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     this.add(body);
-
 
     const arm1Geometry = new THREE.BoxGeometry(0.1, 0.1, 2);
     const arm1Material = new THREE.MeshStandardMaterial({ color: 0x444444 });
@@ -40,36 +40,38 @@ export class Drone extends THREE.Group {
     this.add(arm2);
 
     // Arms
-    const armLength = 2;
+    const armLength = 2.5;
     const armGeometry = new THREE.CylinderGeometry(0.05, 0.05, armLength, 8);
     const armMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
 
-    const angles = [Math.PI/4, -Math.PI/4, -3*Math.PI/4, 3*Math.PI/4];
+    const angles = [
+      Math.PI / 4,
+      -Math.PI / 4,
+      (-3 * Math.PI) / 4,
+      (3 * Math.PI) / 4,
+    ];
     angles.forEach((angle) => {
       const arm = new THREE.Mesh(armGeometry, armMaterial);
       arm.rotation.z = Math.PI / 2;
-      arm.rotation.y = angle;   
+      arm.rotation.y = angle;
       //arm.rotation.z = angle;
       this.add(arm);
     });
 
     // Rotors
-    const rotorGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.05, 16);
-    const rotorMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
     this.rotors = [];
 
-    const offset = armLength / 2.5;
+    const offset = armLength / 2.9;
     const positions = [
       [offset, offset],
       [-offset, offset],
       [offset, -offset],
-      [-offset, -offset]
+      [-offset, -offset],
     ];
 
-    positions.forEach(([x, z]) => {
-      const rotor = new THREE.Mesh(rotorGeometry, rotorMaterial);
-      rotor.rotation.x = Math.PI / 2;
-      rotor.position.set(x, 0.15, z);
+    positions.forEach(([x, z], idx) => {
+      const rotor = new Rotor();
+      rotor.position.set(x, 0.05, z);
       this.rotors.push(rotor);
       this.add(rotor);
     });
@@ -86,7 +88,7 @@ export class Drone extends THREE.Group {
     this.rotation.copy(this.state.rot);
 
     // Thrust magnitude
-    const thrust = (throttle + 1) / 2 * 15;
+    const thrust = ((throttle + 1) / 2) * 15;
 
     // Thrust in local drone coordinates
     const localThrust = new THREE.Vector3(0, thrust, 0);
@@ -105,7 +107,11 @@ export class Drone extends THREE.Group {
 
     // Rotate rotors
     this.rotors.forEach((rotor, idx) => {
-      rotor.rotation.y += (idx % 2 === 0 ? 1 : -1) * 20 * dt; // alternate spin directions
+        if (idx === 0 || idx === 3) {
+            rotor.spin(dt, 40, true);
+        } else {
+            rotor.spin(dt, 40, false);
+        }
     });
   }
 }
