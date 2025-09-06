@@ -2,6 +2,7 @@ import './style.css'
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Drone } from './Drone.js';
+import Stats from 'stats.js';
 
 // --- Three.js setup ---
 const scene = new THREE.Scene();
@@ -15,6 +16,10 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;          // <-- enable shadows
 renderer.shadowMap.type = THREE.PCFSoftShadowMap; // optional: softer shadows
 document.body.appendChild(renderer.domElement);
+
+const stats = new Stats();
+stats.showPanel(0); // 0 = FPS
+document.body.appendChild(stats.dom);
 
 const planeSize = 100;
 
@@ -40,7 +45,7 @@ dir.castShadow = true;
 dir.shadow.mapSize.width = 2048;
 dir.shadow.mapSize.height = 2048;
 dir.shadow.camera.near = 1;
-dir.shadow.camera.far = 100;
+dir.shadow.camera.far = 200;
 dir.shadow.camera.left = -50;
 dir.shadow.camera.right = 50;
 dir.shadow.camera.top = 50;
@@ -170,7 +175,7 @@ function physics(){
   drone.rotation.copy(droneState.rot);
 
   // Thrust magnitude
-  const thrust = (throttleInput + 1)/2 * 15; // 0..15 N
+  const thrust = (throttleInput + 1)/2 * 20; // 0..15 N
 
   // Thrust direction in local drone coordinates
   const localThrust = new THREE.Vector3(0, thrust, 0);
@@ -194,7 +199,7 @@ function physics(){
 const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
 const boxMaterial = new THREE.MeshStandardMaterial({ color: 0x999999 });
 
-for (let i = 0; i < 2000; i++) {
+for (let i = 0; i < 5000; i++) {
   const box = new THREE.Mesh(boxGeometry, boxMaterial);
   
   // Random position within plane bounds (-25 to +25 for 50x50 plane)
@@ -224,6 +229,8 @@ grid.position.y = 0.01;
 scene.add(grid);
 
 function animate(){
+  stats.begin();
+
   // --- Read gamepad axes ---
 
 
@@ -250,6 +257,8 @@ function animate(){
 
   // --- Render scene ---
   renderer.render(scene, camera);
+
+  stats.end();
 
   requestAnimationFrame(animate);
 }

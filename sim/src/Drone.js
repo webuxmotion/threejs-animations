@@ -18,12 +18,17 @@ export class Drone extends THREE.Group {
 
     // Create drone mesh
     this.createDroneMesh();
+
+    // In Drone constructor
+    this.state.angVel = new THREE.Vector3(0, 0, 0);
+    this.angularDamping = 0.9; // 0 = no damping, 1 = stops instantly
+    this.linearDamping = 0.995;
   }
 
   createDroneMesh() {
     // Central body
     const bodyGeometry = new THREE.BoxGeometry(0.3, 0.3, 1);
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x666666 });
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     this.add(body);
 
@@ -80,38 +85,58 @@ export class Drone extends THREE.Group {
   }
 
   updatePhysics(throttle, roll, pitch, yaw, dt) {
-    // Rotation speeds
-    const rotationSpeed = 1.5;
-    this.state.rot.x += -pitch * rotationSpeed * dt;
-    this.state.rot.z += -roll * rotationSpeed * dt;
-    this.state.rot.y += -yaw * rotationSpeed * dt;
+    const rotationSpeed = 2; // torque strength
+
+    // Convert inputs into angular acceleration (torque)
+    const angAccel = new THREE.Vector3(
+      -pitch * rotationSpeed,
+      -yaw * rotationSpeed,
+      -roll * rotationSpeed
+    );
+
+    // Update angular velocity
+    this.state.angVel.addScaledVector(angAccel, dt);
+
+    // Apply damping
+    this.state.angVel.multiplyScalar(this.angularDamping);
+
+    // Update rotation based on angular velocity
+    this.state.rot.x += this.state.angVel.x * dt;
+    this.state.rot.y += this.state.angVel.y * dt;
+    this.state.rot.z += this.state.angVel.z * dt;
     this.rotation.copy(this.state.rot);
 
-    // Thrust magnitude
-    const thrust = ((throttle + 1) / 2) * 15;
+    // Thrust
+    const thrust = ((throttle + 1) / 2) * 15; // double thrust
 
-    // Thrust in local drone coordinates
     const localThrust = new THREE.Vector3(0, thrust, 0);
     localThrust.applyEuler(this.state.rot);
 
     // Gravity
     const gravity = new THREE.Vector3(0, -this.g, 0);
 
-    // Acceleration
+    // Linear acceleration
     const accel = new THREE.Vector3().add(localThrust).add(gravity);
 
-    // Update velocity and position
+    // Update velocity with damping
     this.state.vel.addScaledVector(accel, dt);
+    this.state.vel.multiplyScalar(this.linearDamping);
+
+    // Update position
     this.state.pos.addScaledVector(this.state.vel, dt);
     this.position.copy(this.state.pos);
 
+    const baseSpeed = 10; // minimal spinning at 0 throttle
+    const maxExtraSpeed = 40; // extra spin added at full throttle
+    const rotorSpeed = baseSpeed + maxExtraSpeed * ((throttle + 1) / 2); // map throttle -1..1 to 0..1
+
     // Rotate rotors
     this.rotors.forEach((rotor, idx) => {
-        if (idx === 0 || idx === 3) {
-            rotor.spin(dt, 40, true);
-        } else {
-            rotor.spin(dt, 40, false);
-        }
+      if (idx === 0 || idx === 3) {
+        rotor.spin(dt, rotorSpeed, true);
+      } else {
+        rotor.spin(dt, rotorSpeed, false);
+      }
     });
   }
 }
