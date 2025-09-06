@@ -57,6 +57,17 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.copy(drone.position);
 controls.update();
 
+// Offset behind the drone (relative to drone's orientation)
+const cameraOffset = new THREE.Vector3(0, 2, 6); // 2 units up, 6 units behind
+
+function updateCamera() {
+  // Apply drone rotation to get "behind" direction
+  const offsetWorld = cameraOffset.clone().applyEuler(drone.rotation);
+  
+  camera.position.copy(drone.position).add(offsetWorld);
+  camera.lookAt(drone.position); // always look at drone
+}
+
 // --- Joystick visualization ---
 const canvas = document.getElementById('joystick');
 const ctx = canvas.getContext('2d');
@@ -100,9 +111,9 @@ function physics(){
 
   // Rotation speeds
   const rotationSpeed = 1.5; // radians/sec
-  droneState.rot.x += pitchInput * rotationSpeed * dt;  // pitch
-  droneState.rot.z += rollInput * rotationSpeed * dt;   // roll
-  droneState.rot.y += yawInput * rotationSpeed * dt;    // yaw
+  droneState.rot.x += -pitchInput * rotationSpeed * dt;  // pitch
+  droneState.rot.z += -rollInput * rotationSpeed * dt;   // roll
+  droneState.rot.y += -yawInput * rotationSpeed * dt;    // yaw
   drone.rotation.copy(droneState.rot);
 
   // Thrust magnitude
@@ -126,9 +137,14 @@ function physics(){
   drone.position.copy(droneState.pos);
 }
 
+// Add grid helper on the plane
+const grid = new THREE.GridHelper(50, 50, 0x000000, 0x888888); // size 50, divisions 50
+scene.add(grid);
+
 // --- Animation loop ---
 function animate(){
   physics();
+  updateCamera();    
   renderer.render(scene,camera);
   requestAnimationFrame(animate);
 }
