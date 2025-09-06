@@ -1,6 +1,7 @@
 import './style.css'
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { Drone } from './Drone.js';
 
 // --- Three.js setup ---
 const scene = new THREE.Scene();
@@ -16,7 +17,7 @@ document.body.appendChild(renderer.domElement);
 // Plane
 const plane = new THREE.Mesh(
   new THREE.PlaneGeometry(50,50),
-  new THREE.MeshStandardMaterial({ color: 0x228822 })
+  new THREE.MeshStandardMaterial({ color: 0x888888 })
 );
 plane.rotation.x = -Math.PI/2;
 plane.receiveShadow = true;
@@ -33,10 +34,7 @@ dir.castShadow = true;
 scene.add(dir);
 
 // Drone (cube)
-const droneGeometry = new THREE.BoxGeometry(1,0.2,1);
-const droneMaterial = new THREE.MeshStandardMaterial({color:0xff0000});
-const drone = new THREE.Mesh(droneGeometry, droneMaterial);
-drone.castShadow = true;
+const drone = new Drone();
 scene.add(drone);
 
 // Physics state
@@ -72,16 +70,65 @@ function updateCamera() {
 const canvas = document.getElementById('joystick');
 const ctx = canvas.getContext('2d');
 
+function resizeJoystickCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeJoystickCanvas);
+resizeJoystickCanvas();
+
 function drawSticks(axes){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  // right stick: axes 0,1
-  const rx = (axes[0]||0)*50+300;
-  const ry = (axes[1]||0)*-50+100;
-  ctx.beginPath(); ctx.arc(rx, ry, 20,0,Math.PI*2); ctx.fillStyle='blue'; ctx.fill(); ctx.stroke();
-  // left stick: axes 3,4
-  const lx = (axes[4]||0)*50+100;
-  const ly = (axes[3]||0)*-50+100;
-  ctx.beginPath(); ctx.arc(lx, ly, 20,0,Math.PI*2); ctx.fillStyle='red'; ctx.fill(); ctx.stroke();
+
+  const centerX = canvas.width / 2;
+  const bottomY = canvas.height - 80; // 50 px from bottom
+  const lineWidth = 60;
+
+  // --- Right stick (blue) ---
+  const rightCenterX = centerX + 80;
+  const rightCenterY = bottomY;
+  const rx = rightCenterX + (axes[0]||0) * 50;
+  const ry = rightCenterY + (axes[1]||0) * -50;
+
+  // Draw cross lines for right stick
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(rightCenterX - lineWidth, rightCenterY); // horizontal line
+  ctx.lineTo(rightCenterX + lineWidth, rightCenterY);
+  ctx.moveTo(rightCenterX, rightCenterY - lineWidth); // vertical line
+  ctx.lineTo(rightCenterX, rightCenterY + lineWidth);
+  ctx.stroke();
+
+  // Draw stick circle
+  ctx.beginPath();
+  ctx.arc(rx, ry, 10, 0, Math.PI*2);
+  ctx.fillStyle = 'white';
+  ctx.fill();
+  ctx.stroke();
+
+  // --- Left stick (red) ---
+  const leftCenterX = centerX - 80;
+  const leftCenterY = bottomY;
+  const lx = leftCenterX + (axes[4]||0) * 50;
+  const ly = leftCenterY + (axes[3]||0) * -50;
+
+  // Draw cross lines for left stick
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(leftCenterX - lineWidth, leftCenterY); // horizontal
+  ctx.lineTo(leftCenterX + lineWidth, leftCenterY);
+  ctx.moveTo(leftCenterX, leftCenterY - lineWidth); // vertical
+  ctx.lineTo(leftCenterX, leftCenterY + lineWidth);
+  ctx.stroke();
+
+  // Draw stick circle
+  ctx.beginPath();
+  ctx.arc(lx, ly, 10, 0, Math.PI*2);
+  ctx.fillStyle = 'white';
+  ctx.fill();
+  ctx.stroke();
 }
 
 // --- Gamepad ---
@@ -91,15 +138,6 @@ window.addEventListener("gamepadconnected",(e)=>{
   console.log("Gamepad connected:",e.gamepad);
 });
 
-function updateGamepads(){
-  const gps = navigator.getGamepads();
-  if(gps[0]){
-    axes = gps[0].axes;
-    drawSticks(axes);
-  }
-  requestAnimationFrame(updateGamepads);
-}
-updateGamepads();
 
 // --- Simulation ---
 function physics(){
@@ -139,13 +177,28 @@ function physics(){
 
 // Add grid helper on the plane
 const grid = new THREE.GridHelper(50, 50, 0x000000, 0x888888); // size 50, divisions 50
+grid.position.y = 0.01;
 scene.add(grid);
 
-// --- Animation loop ---
 function animate(){
+  // --- Read gamepad axes ---
+  
+
+  // --- Update physics ---
   physics();
-  updateCamera();    
-  renderer.render(scene,camera);
+
+  // --- Update camera ---
+  updateCamera();
+
+  const gps = navigator.getGamepads();
+  if(gps[0]){
+    axes = gps[0].axes;
+    drawSticks(axes);
+  }
+
+  // --- Render scene ---
+  renderer.render(scene, camera);
+
   requestAnimationFrame(animate);
 }
 animate();
