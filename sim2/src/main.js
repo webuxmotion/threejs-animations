@@ -7,58 +7,122 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0.1, 0.2, 0.1);
 
+
+// --- Camera ---
+const camera = new THREE.PerspectiveCamera(
+  75, window.innerWidth / window.innerHeight, 0.1, 500
+);
+camera.position.set(5, 3, 8);
+
+// --- Renderer ---
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;               
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
-// --- Light ---
+
+
+// --- Lights ---
 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
 scene.add(hemiLight);
 
 const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
 dirLight.position.set(10, 10, 10);
 dirLight.castShadow = true;
+dirLight.shadow.mapSize.width = 2048;
+dirLight.shadow.mapSize.height = 2048;
+dirLight.shadow.camera.near = 1;
+dirLight.shadow.camera.far = 50;
+dirLight.shadow.camera.left = -25;
+dirLight.shadow.camera.right = 25;
+dirLight.shadow.camera.top = 25;
+dirLight.shadow.camera.bottom = -25;
 scene.add(dirLight);
 
 // --- Controls ---
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
-// --- Load propeller model ---
-const loader = new GLTFLoader();
-loader.load(
-  '/5-inch-propeller.gltf', // file inside public/
-  (gltf) => {
-    const propeller = gltf.scene;
-    //propeller.scale.set(0.1, 0.1, 0.1); // adjust size if needed
-    propeller.position.set(0, 0, 0);
-    propeller.rotation.x = -Math.PI / 2;
+let hangarPartGlobal;
 
-    scene.add(propeller);
+const textureLoader = new THREE.TextureLoader();
+textureLoader.load(
+  '/textures/concrete.png',
+  (concreteTexture) => {
+    // setup texture
+    concreteTexture.wrapS = THREE.RepeatWrapping;
+    concreteTexture.wrapT = THREE.RepeatWrapping;
+    concreteTexture.repeat.set(25, 25);
+
+    // Ground material
+    const groundMaterial = new THREE.MeshPhysicalMaterial({
+      map: concreteTexture,
+      bumpMap: concreteTexture,
+      bumpScale: 0.05,
+      metalness: 0,
+      roughness: 0.9,
+      clearcoat: 0
+    });
+
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(50, 50),
+      groundMaterial
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.01;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Hangar part will also use the same concrete texture
+    const loader = new GLTFLoader();
+    loader.load(
+      '/hangar-part.gltf',
+      (gltf) => {
+        const hangarPart = gltf.scene;
+        hangarPart.position.set(0, 0, 0);
+        hangarPart.rotation.x = -Math.PI / 2;
+
+        hangarPart.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+
+            child.material = new THREE.MeshPhysicalMaterial({
+              color: 0x888888,
+              metalness: 0,
+              roughness: 0.9,
+              map: concreteTexture,
+              bumpMap: concreteTexture,
+              bumpScale: 0.05,
+              clearcoat: 0,
+            });
+          }
+        });
+
+        hangarPartGlobal = hangarPart;
+
+        scene.add(hangarPart);
+      },
+      undefined,
+      (err) => console.error('Error loading hangar part:', err)
+    );
   },
-  (xhr) => {
-    console.log((xhr.loaded / xhr.total * 100).toFixed(2) + '% loaded');
-  },
-  (error) => {
-    console.error('Error loading propeller:', error);
-  }
+  undefined,
+  (err) => console.error('Error loading concrete texture:', err)
 );
 
-// --- Ground plane (optional) ---
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(50, 50),
-  new THREE.MeshStandardMaterial({ color: 0x228822 })
-);
-ground.rotation.x = -Math.PI / 2;
-ground.position.y = -0.01;
-scene.add(ground);
+
 
 // --- Animate ---
 function animate() {
   requestAnimationFrame(animate);
+
+  if (hangarPartGlobal) {
+    //hangarPartGlobal.rotation.z += 0.01; // optional rotation
+  }
+
   controls.update();
   renderer.render(scene, camera);
 }
