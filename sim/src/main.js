@@ -158,48 +158,11 @@ window.addEventListener("gamepadconnected",(e)=>{
   console.log("Gamepad connected:",e.gamepad);
 });
 
-
-// --- Simulation ---
-function physics(){
-  // Joystick mapping
-  const rollInput = axes[0] || 0;    // right stick X
-  const pitchInput = axes[1] || 0;   // right stick Y
-  const throttleInput = axes[3] || 0; // left stick Y
-  const yawInput = axes[4] || 0;     // left stick X
-
-  // Rotation speeds
-  const rotationSpeed = 1.5; // radians/sec
-  droneState.rot.x += -pitchInput * rotationSpeed * dt;  // pitch
-  droneState.rot.z += -rollInput * rotationSpeed * dt;   // roll
-  droneState.rot.y += -yawInput * rotationSpeed * dt;    // yaw
-  drone.rotation.copy(droneState.rot);
-
-  // Thrust magnitude
-  const thrust = (throttleInput + 1)/2 * 20; // 0..15 N
-
-  // Thrust direction in local drone coordinates
-  const localThrust = new THREE.Vector3(0, thrust, 0);
-
-  // Rotate thrust to world coordinates according to drone rotation
-  localThrust.applyEuler(droneState.rot);
-
-  // Gravity
-  const gravity = new THREE.Vector3(0, -g, 0);
-
-  // Acceleration = thrust + gravity
-  const accel = new THREE.Vector3().add(localThrust).add(gravity);
-
-  // Update velocity and position
-  droneState.vel.addScaledVector(accel, dt);
-  droneState.pos.addScaledVector(droneState.vel, dt);
-  drone.position.copy(droneState.pos);
-}
-
 // --- Add 100 random boxes on plane ---
 const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
 const boxMaterial = new THREE.MeshStandardMaterial({ color: 0x999999 });
 
-for (let i = 0; i < 5000; i++) {
+for (let i = 0; i < 1000; i++) {
   const box = new THREE.Mesh(boxGeometry, boxMaterial);
   
   // Random position within plane bounds (-25 to +25 for 50x50 plane)
@@ -244,7 +207,6 @@ function animate(){
   
 
   // --- Update physics ---
-  physics();
 
   // --- Update camera ---
   updateCamera();
